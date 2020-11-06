@@ -66,7 +66,7 @@ impl Instruction {
         }
     }
 }
-
+/*
 fn route(args: Vec<IValue>, data: HashMap<&'static str, JValue>) -> Option<IValue> {
     let args = Args::parse(args).expect("valid args");
     match args.service_id.as_str() {
@@ -141,8 +141,6 @@ pub fn make_particle(
 )
     "#);
 
-    // log::info!("script\n{}", script);
-
     let id = uuid();
     let mut vm = make_vm(id.clone(), &peer_id, pass_data_func(data));
 
@@ -181,3 +179,4 @@ pub fn read_args(particle: Particle, peer_id: &PeerId) -> Vec<JValue> {
     let data = data.lock();
     data.deref().clone()
 }
+*/

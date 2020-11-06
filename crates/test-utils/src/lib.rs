@@ -38,3 +38,4 @@ pub use connected_client::ConnectedClient;
 pub use connection::*;
 pub use local_vm::*;
 pub use misc::*;
+pub use singleton_vm::*;

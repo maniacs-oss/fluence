@@ -132,6 +132,7 @@ impl Actor {
                     #[rustfmt::skip]
                     log::debug!("Particle {} executed, will be sent to {} targets", p.id, targets.len());
                     let mut particle = p;
+                    println!("particle executed on the node, data is {}", data);
                     particle.data = data;
                     targets
                         .into_iter()

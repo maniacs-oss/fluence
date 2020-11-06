@@ -36,7 +36,7 @@
 use config_utils::to_abs_path;
 use json_utils::into_array;
 use particle_providers::Provider;
-use test_utils::{connect_swarms, ConnectedClient};
+use test_utils::{connect_swarms, enable_logs, ConnectedClient, LOCAL_VM};
 
 use fstrings::f;
 use libp2p::PeerId;
@@ -67,7 +67,7 @@ fn module_config(module: &str) -> JValue {
 }
 
 fn create_service(client: &mut ConnectedClient, module: &str) -> String {
-    let script = r#"
+    let script = f!(r#"
         (seq
             (seq
                 (call node ("add_module" "") [module_bytes module_config] void[])
@@ -77,11 +77,11 @@ fn create_service(client: &mut ConnectedClient, module: &str) -> String {
                 (call node ("add_blueprint" "") [blueprint] blueprint_id)
                 (seq
                     (call node ("create" "") [blueprint_id] service_id)
-                    (call client ("return" "") [service_id] client_result)
+                    (call "{LOCAL_VM}" ("return" "service_id") [service_id] client_result)
                 )
             )
         )
-        "#;
+        "#);
     let data = hashmap! {
         "client" => json!(client.peer_id.to_string()),
         "node" => json!(client.node.to_string()),
@@ -93,7 +93,7 @@ fn create_service(client: &mut ConnectedClient, module: &str) -> String {
     };
 
     client.send_particle(script, data);
-    let response = client.receive_args();
+    let response = client.receive_from_output("service_id");
 
     response[0]
         .as_str()
@@ -127,22 +127,22 @@ fn alias_service(name: &str, node: PeerId, service_id: String, client: &mut Conn
     );
 }
 
-fn resolve_service(orig_name: &str, client: &mut ConnectedClient) -> HashSet<Provider> {
-    let name = bs58::encode(orig_name).into_string();
+fn resolve_service(name: &str, client: &mut ConnectedClient) -> HashSet<Provider> {
+    let name = bs58::encode(name).into_string();
     let script = f!(r#"
         (seq
             (seq
                 (call node ("neighborhood" "") ["{name}"] neighbors)
                 (fold neighbors n
                     (seq
-                        (call n ("get_providers" "") ["{name}"] providers_{orig_name}[])
+                        (call n ("get_providers" "") ["{name}"] providers[])
                         (next n)
                     )
                 )
             )
             (seq
                 (call node ("identity" "") [] void[])
-                (call client ("return" "") [providers_{orig_name}] void[])
+                (call "{LOCAL_VM}" ("return" "providers") [providers] void[])
             )
         )
     "#);
@@ -154,8 +154,8 @@ fn resolve_service(orig_name: &str, client: &mut ConnectedClient) -> HashSet<Pro
             "node" => json!(client.node.to_string()),
         },
     );
-    let response = client.receive_args();
-    log::info!("resolve_service {} respoonse: {:#?}", orig_name, response);
+    let response = client.receive_from_output("providers");
+    log::info!("resolve_service {} respoonse: {:#?}", name, response);
     let providers = into_array(response[0].clone())
         .expect(format!("missing providers: {:#?}", response).as_str())
         .into_iter()
@@ -185,7 +185,7 @@ fn call_service(alias: &str, fname: &str, arg_list: &str, client: &mut Connected
             )
             (seq
                 (call node ("identity" "") [] void[])
-                (call client ("return" "") [result] void[])
+                (call "{LOCAL_VM}" ("return" "result") [result] void[])
             )
         )
     "#);
@@ -196,7 +196,7 @@ fn call_service(alias: &str, fname: &str, arg_list: &str, client: &mut Connected
         "node" => json!(client.node.to_string()),
     });
 
-    client.receive_args()[0].take()
+    client.receive_from_output("result")[0].take()
 }
 
 fn create_history(client: &mut ConnectedClient) -> String {
@@ -267,6 +267,8 @@ fn send_message(msg: &str, author: &str, client: &mut ConnectedClient) {
 
 #[test]
 fn test_chat() {
+    enable_logs();
+
     let node_count = 5;
     let connect = connect_swarms(node_count);
     let mut client = connect(0);

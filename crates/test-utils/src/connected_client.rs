@@ -15,14 +15,12 @@
  */
 
 use super::misc::Result;
-use crate::{
-    make_particle, make_swarms, read_args, timeout, CreatedSwarm, KAD_TIMEOUT, SHORT_TIMEOUT,
-    TIMEOUT,
-};
+use crate::{make_swarms, timeout, CreatedSwarm, KAD_TIMEOUT, SHORT_TIMEOUT, TIMEOUT};
 
 use fluence_client::{Client, ClientEvent, Transport};
 use particle_protocol::Particle;
 
+use crate::singleton_vm::{make_particle, read_args};
 use async_std::task;
 use core::ops::Deref;
 use libp2p::{core::Multiaddr, PeerId};
@@ -162,6 +160,11 @@ impl ConnectedClient {
 
     pub fn receive_args(&mut self) -> Vec<JValue> {
         let particle = self.receive();
-        read_args(particle, &self.peer_id)
+        read_args(particle, &self.peer_id, "").expect("no args")
+    }
+
+    pub fn receive_from_output(&mut self, key: &str) -> Vec<JValue> {
+        let particle = self.receive();
+        read_args(particle, &self.peer_id, key).expect(f!("key {key} not found in output").as_str())
     }
 }

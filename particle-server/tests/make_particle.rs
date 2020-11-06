@@ -19,17 +19,17 @@
 extern crate fstrings;
 
 use fluence_libp2p::RandomPeerId;
-use test_utils::{make_particle, read_args};
+use test_utils::{enable_logs, make_particle, read_args, LOCAL_VM};
 
 use maplit::hashmap;
 use serde_json::json;
 
 #[test]
-fn make() {
+fn make_particle_test() {
     let client_a = RandomPeerId::random();
     let client_b = RandomPeerId::random();
 
-    let script = r#"(call client_b ("return" "") [a b c] void[])"#.to_string();
+    let script = f!(r#"(call "{LOCAL_VM}" ("return" "result") [a b c] void[])"#);
     let data = hashmap! {
         "client_b" => json!(client_b.to_string()),
         "a" => json!("a_value"),
@@ -39,7 +39,7 @@ fn make() {
 
     let particle = make_particle(client_a.clone(), data.clone(), script.clone());
 
-    let args = read_args(particle, &client_b);
+    let args = read_args(particle, &client_b, "result").expect("args");
     assert_eq!(data["a"], args[0]);
     assert_eq!(data["b"], args[1]);
     assert_eq!(data["c"], args[2]);
